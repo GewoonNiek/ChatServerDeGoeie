@@ -12,6 +12,7 @@ namespace ChatServer
     {
         static Socket server;
         static List<Socket> Clients = new List<Socket>();
+        static AsyncLock clientLock = new AsyncLock();
 
         static async Task Main(string[] args)
         {
@@ -36,13 +37,39 @@ namespace ChatServer
         }
 
         // Function to send message to other users
-        public static void sendMessage(string message)
+        public static async Task sendMessage(string message, Socket sender)
         {
-            string[] strings = message.Split(';');
+            var responseBytes = Encoding.UTF8.GetBytes(message);
 
-            string groupnumber = strings[0];
-            string messageBody = strings[1];
-            // Assuming sendMessage method logic will be added here
+            List<Socket> clientsToRemove = new List<Socket>();
+
+            using (await clientLock.LockAsync())
+            {
+                foreach (Socket s in Clients)
+                {
+                    if (s != sender)
+                    {
+                        try
+                        {
+                            Console.WriteLine($"Sending message to client {s.RemoteEndPoint}");
+                            await s.SendAsync(responseBytes, SocketFlags.None);
+                        }
+                        catch (SocketException)
+                        {
+                            clientsToRemove.Add(s);
+                        }
+                        catch (ObjectDisposedException)
+                        {
+                            clientsToRemove.Add(s);
+                        }
+                    }
+                }
+
+                foreach (var client in clientsToRemove)
+                {
+                    Clients.Remove(client);
+                }
+            }
         }
 
         static async Task CreateServer()
@@ -51,7 +78,6 @@ namespace ChatServer
             IPHostEntry localhost = await Dns.GetHostEntryAsync(hostName);
 
             // Use the first IPv4 address found
-
             IPAddress localIpAddress = localhost.AddressList.First(ip => ip.AddressFamily == AddressFamily.InterNetwork);
 
             IPEndPoint ip = new IPEndPoint(localIpAddress, 1337);
@@ -73,7 +99,11 @@ namespace ChatServer
                 try
                 {
                     Socket handler = await server.AcceptAsync();
-                    Clients.Add(handler);
+                    using (await clientLock.LockAsync())
+                    {
+                        Clients.Add(handler);
+                    }
+                    Console.WriteLine($"Client connected: {handler.RemoteEndPoint}");
                     _ = Communicate(handler); // Fire-and-forget
                 }
                 catch (Exception ex)
@@ -98,10 +128,13 @@ namespace ChatServer
                     }
 
                     var messageString = Encoding.UTF8.GetString(buffer, 0, received);
-                    Console.WriteLine("Client sent: " + messageString);
+                    Console.WriteLine($"Client {handler.RemoteEndPoint} sent: {messageString}");
 
                     // Store message in the database
                     getMessage(messageString);
+
+                    // Broadcast the message to other clients
+                    await sendMessage(messageString, handler);
 
                     var response = "Message received!";
                     var responseBytes = Encoding.UTF8.GetBytes(response);
@@ -115,9 +148,13 @@ namespace ChatServer
             }
 
             // Cleanup after client disconnects
+            Console.WriteLine($"Client disconnected: {handler.RemoteEndPoint}");
             handler.Shutdown(SocketShutdown.Both);
             handler.Close();
-            Clients.Remove(handler);
+            using (await clientLock.LockAsync())
+            {
+                Clients.Remove(handler);
+            }
         }
     }
 }
