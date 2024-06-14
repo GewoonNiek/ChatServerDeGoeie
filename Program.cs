@@ -128,7 +128,7 @@ namespace ChatServer
                     }
 
                     var messageString = Encoding.UTF8.GetString(buffer, 0, received);
-                    Console.WriteLine($"Client {handler.RemoteEndPoint} sent: {messageString}");
+                    Console.WriteLine($"{messageString}");
 
                     // Store message in the database
                     getMessage(messageString);
