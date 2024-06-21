@@ -157,7 +157,7 @@ namespace ChatServer
         public static void getMessage(string message)
         {
             string[] splittedMessage = message.Split(';');
-            database.putGRPInDB(splittedMessage[0], splittedMessage[1]);
+            database.putGRPInDB(splittedMessage[0], $"{splittedMessage[1]};{splittedMessage[2]}");
         }
     }
 }
