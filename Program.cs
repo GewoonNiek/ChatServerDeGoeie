@@ -1,6 +1,6 @@
 ﻿using System;
-using System.Net.Sockets;
 using System.Net;
+using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
 using System.Collections.Generic;
@@ -25,53 +25,6 @@ namespace ChatServer
             await Task.Delay(-1);
         }
 
-        // Function to get message from sender & put it in database
-        public static void getMessage(string message)
-        {
-            string[] strings = message.Split(';');
-
-            string groupnumber = strings[0];
-            string messageBody = strings[1];
-
-            database.putGRPInDB(groupnumber, messageBody);
-        }
-
-        // Function to send message to other users
-        public static async Task sendMessage(string message, Socket sender)
-        {
-            var responseBytes = Encoding.UTF8.GetBytes(message);
-
-            List<Socket> clientsToRemove = new List<Socket>();
-
-            using (await clientLock.LockAsync())
-            {
-                foreach (Socket s in Clients)
-                {
-                    if (s != sender)
-                    {
-                        try
-                        {
-                            Console.WriteLine($"Sending message to client {s.RemoteEndPoint}");
-                            await s.SendAsync(responseBytes, SocketFlags.None);
-                        }
-                        catch (SocketException)
-                        {
-                            clientsToRemove.Add(s);
-                        }
-                        catch (ObjectDisposedException)
-                        {
-                            clientsToRemove.Add(s);
-                        }
-                    }
-                }
-
-                foreach (var client in clientsToRemove)
-                {
-                    Clients.Remove(client);
-                }
-            }
-        }
-
         static async Task CreateServer()
         {
             var hostName = Dns.GetHostName();
@@ -85,7 +38,7 @@ namespace ChatServer
             server = new Socket(ip.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
 
             server.Bind(ip);
-            server.Listen();
+            server.Listen(10);  // Allow up to 10 pending connections
             Console.WriteLine($"Server started listening on IP: {localIpAddress} and port: 1337");
 
             // Call the AcceptClients method which will await the next Client infinitely
@@ -128,7 +81,7 @@ namespace ChatServer
                     }
 
                     var messageString = Encoding.UTF8.GetString(buffer, 0, received);
-                    Console.WriteLine($"{messageString}");
+                    Console.WriteLine($"Received from client {handler.RemoteEndPoint}: {messageString}");
 
                     // Store message in the database
                     getMessage(messageString);
@@ -149,12 +102,62 @@ namespace ChatServer
 
             // Cleanup after client disconnects
             Console.WriteLine($"Client disconnected: {handler.RemoteEndPoint}");
-            handler.Shutdown(SocketShutdown.Both);
+            try
+            {
+                handler.Shutdown(SocketShutdown.Both);
+            }
+            catch (SocketException ex)
+            {
+                Console.WriteLine($"SocketException on Shutdown: {ex.Message}");
+            }
             handler.Close();
             using (await clientLock.LockAsync())
             {
                 Clients.Remove(handler);
             }
+        }
+
+        public static async Task sendMessage(string message, Socket sender)
+        {
+            var responseBytes = Encoding.UTF8.GetBytes(message);
+
+            List<Socket> clientsToRemove = new List<Socket>();
+
+            using (await clientLock.LockAsync())
+            {
+                foreach (Socket s in Clients)
+                {
+                    if (s != sender)
+                    {
+                        try
+                        {
+                            Console.WriteLine($"Sending message to client {s.RemoteEndPoint}");
+                            await s.SendAsync(responseBytes, SocketFlags.None);
+                        }
+                        catch (SocketException ex)
+                        {
+                            Console.WriteLine($"SocketException: {ex.Message}");
+                            clientsToRemove.Add(s);
+                        }
+                        catch (ObjectDisposedException ex)
+                        {
+                            Console.WriteLine($"ObjectDisposedException: {ex.Message}");
+                            clientsToRemove.Add(s);
+                        }
+                    }
+                }
+
+                foreach (var client in clientsToRemove)
+                {
+                    Clients.Remove(client);
+                }
+            }
+        }
+
+        public static void getMessage(string message)
+        {
+            string[] splittedMessage = message.Split(';');
+            database.putGRPInDB(splittedMessage[0], splittedMessage[1]);
         }
     }
 }
