@@ -9,7 +9,7 @@ namespace ChatServer
         //private static string connectionString = "server=localhost; user=root; database=c#_chatprogramma; password=";
 
         // Connectionstring & connection to database variables
-        public static string connectionString = "server=localhost;database=chatprogramma;user=chatprogramma;password=chatprogramma123;";
+        public static string connectionString = "server=188.89.106.150;database=chatprogramma;user=chatprogramma;password=chatprogramma123;";
         static MySqlConnection connection = new MySqlConnection(connectionString);
 
 
