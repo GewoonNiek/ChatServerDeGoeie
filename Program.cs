@@ -30,7 +30,7 @@ namespace ChatServer
             var hostName = Dns.GetHostName();
             IPHostEntry localhost = await Dns.GetHostEntryAsync(hostName);
 
-            // Use the first IPv4 address found
+            // Acquire the localhost ip adress
             IPAddress localIpAddress = localhost.AddressList.First(ip => ip.AddressFamily == AddressFamily.InterNetwork);
 
             IPEndPoint ip = new IPEndPoint(localIpAddress, 1337);
@@ -38,13 +38,14 @@ namespace ChatServer
             server = new Socket(ip.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
 
             server.Bind(ip);
-            server.Listen(10);  // Allow up to 10 pending connections
+            server.Listen(50);
             Console.WriteLine($"Server started listening on IP: {localIpAddress} and port: 1337");
 
-            // Call the AcceptClients method which will await the next Client infinitely
-            _ = AcceptClients(); // Fire-and-forget
+            // Infinite loop to accept clients
+            _ = AcceptClients();
         }
-
+        
+        // Accept clientsd to join the server
         static async Task AcceptClients()
         {
             while (true)
@@ -66,6 +67,8 @@ namespace ChatServer
             }
         }
 
+
+        // Communication between server and Client
         static async Task Communicate(Socket handler)
         {
             var buffer = new byte[1024];
@@ -73,10 +76,10 @@ namespace ChatServer
             {
                 try
                 {
+                    // Check if a message is recieved
                     int received = await handler.ReceiveAsync(buffer, SocketFlags.None);
                     if (received == 0)
                     {
-                        // Connection closed
                         break;
                     }
 
@@ -117,18 +120,22 @@ namespace ChatServer
             }
         }
 
+        // Send message to other users
         public static async Task sendMessage(string message, Socket sender)
         {
+            // Convert message to bytes
             var responseBytes = Encoding.UTF8.GetBytes(message);
 
             List<Socket> clientsToRemove = new List<Socket>();
 
+            // Put clients in lock and release when all done
             using (await clientLock.LockAsync())
             {
                 foreach (Socket s in Clients)
                 {
                     if (s != sender)
                     {
+                        // Send messages
                         try
                         {
                             Console.WriteLine($"Sending message to client {s.RemoteEndPoint}");
@@ -154,6 +161,7 @@ namespace ChatServer
             }
         }
 
+        // Put message in database
         public static void getMessage(string message)
         {
             string[] splittedMessage = message.Split(';');
