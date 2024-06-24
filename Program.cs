@@ -27,15 +27,10 @@ namespace ChatServer
 
         static async Task CreateServer()
         {
-            var hostName = Dns.GetHostName();
-            IPHostEntry localhost = await Dns.GetHostEntryAsync(hostName);
-
-            // Use the first IPv4 address found
-            IPAddress localIpAddress = localhost.AddressList.First(ip => ip.AddressFamily == AddressFamily.InterNetwork);
+            string ipString = "188.89.106.150"; // Replace with your desired IP address
+            IPAddress localIpAddress = IPAddress.Parse(ipString);
 
             IPEndPoint ip = new IPEndPoint(localIpAddress, 1337);
-
-            server = new Socket(ip.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
 
             server.Bind(ip);
             server.Listen(10);  // Allow up to 10 pending connections
