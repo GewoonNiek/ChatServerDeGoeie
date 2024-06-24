@@ -35,6 +35,12 @@ namespace ChatServer
 
             IPEndPoint ip = new IPEndPoint(localIpAddress, 1337);
 
+            server = new Socket(ip.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+
+            server.Bind(ip);
+            server.Listen(10);  // Allow up to 10 pending connections
+            Console.WriteLine($"Server started listening on IP: {localIpAddress} and port: 1337");
+
             // Call the AcceptClients method which will await the next Client infinitely
             _ = AcceptClients(); // Fire-and-forget
         }
@@ -151,9 +157,7 @@ namespace ChatServer
         public static void getMessage(string message)
         {
             string[] splittedMessage = message.Split(';');
-            string messageString = splittedMessage[1] += splittedMessage[2];
-            database.putGRPInDB(splittedMessage[0], messageString);
-
+            database.putGRPInDB(splittedMessage[0], $"{splittedMessage[1]};{splittedMessage[2]}");
         }
     }
 }
