@@ -6,9 +6,10 @@ namespace ChatServer
     internal class database
     {
         //ruben connectsion string
-        private static string connectionString = "server=localhost; user=root; database=c#_chatprogramma; password=";
+        //private static string connectionString = "server=localhost; user=root; database=c#_chatprogramma; password=";
+
         // Connectionstring & connection to database variables
-        //public static string connectionString = "server=localhost;database=chatprogramma;user=chatprogramma;password=chatprogramma123;";
+        public static string connectionString = "server=localhost;database=chatprogramma;user=chatprogramma;password=chatprogramma123;";
         static MySqlConnection connection = new MySqlConnection(connectionString);
 
 
